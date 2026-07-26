@@ -1,18 +1,47 @@
 name: Send Cadence briefs
 
-# Runs every 30 minutes (times are UTC). The script checks each brief's own
-# timezone + scheduled time, so a brief set for 08:00 Asia/Kolkata goes out on
-# the first run at/after 08:00 IST and is not repeated that day.
-#
-# To save runs you can narrow this to your delivery window, e.g. for 08:00 IST
-# (= 02:30 UTC) use:  cron: "0,30 2-3 * * *"
+# Two ways it runs:
+#  • Automatically on a cron — sends whatever is in briefs.yaml when it's due.
+#  • Manually via "Run workflow" — a form asks what you want, and it saves that
+#    as your brief AND emails you a copy right away.
 on:
   schedule:
-    - cron: "*/30 * * * *"
-  workflow_dispatch: {}   # lets you click "Run workflow" to test on demand
+    - cron: "*/30 * * * *"   # every 30 min (UTC); each brief has its own local time
+  workflow_dispatch:
+    inputs:
+      query:
+        description: "What information do you need?"
+        required: true
+        default: "A summary of how the Nifty 50 performed in the latest session: open, close, day's range, % change, the stocks/sectors driving it, and key market news. Skimmable."
+      email:
+        description: "Deliver to which email? (leave blank to use your saved RECIPIENT_EMAIL)"
+        required: false
+        default: ""
+      frequency:
+        description: "How often?"
+        required: true
+        type: choice
+        default: daily
+        options:
+          - daily
+          - every_2_days
+          - every_3_days
+          - weekly
+      time_of_day:
+        description: "Time of day to deliver (HH:MM, 24-hour)"
+        required: true
+        default: "08:00"
+      timezone:
+        description: "Timezone (IANA name, e.g. Asia/Kolkata, America/New_York)"
+        required: true
+        default: "Asia/Kolkata"
+      day_of_week:
+        description: "If 'weekly': which day (0=Mon, 1=Tue … 6=Sun)"
+        required: false
+        default: "0"
 
 permissions:
-  contents: write         # to commit the last-sent state file
+  contents: write   # to save briefs.yaml + the last-sent state
 
 concurrency:
   group: cadence-briefs
@@ -32,22 +61,30 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Send due briefs
+      - name: Run Cadence
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM || 'Cadence <onboarding@resend.dev>' }}
+          # These are empty on scheduled runs (=> deliver mode) and populated
+          # from the form on manual runs (=> configure + send now).
+          BRIEF_QUERY: ${{ inputs.query }}
+          BRIEF_EMAIL: ${{ inputs.email }}
+          BRIEF_FREQUENCY: ${{ inputs.frequency }}
+          BRIEF_TIME: ${{ inputs.time_of_day }}
+          BRIEF_TZ: ${{ inputs.timezone }}
+          BRIEF_DOW: ${{ inputs.day_of_week }}
         run: python send_due_briefs.py
 
-      - name: Persist last-sent state
+      - name: Persist briefs.yaml + state
         run: |
-          if [[ -n "$(git status --porcelain .cadence_state.json)" ]]; then
+          git add briefs.yaml .cadence_state.json
+          if ! git diff --cached --quiet; then
             git config user.name "cadence-bot"
             git config user.email "actions@github.com"
-            git add .cadence_state.json
-            git commit -m "chore: update brief send state [skip ci]"
+            git commit -m "chore: update Cadence brief/state [skip ci]"
             git push
           else
-            echo "No state change."
+            echo "Nothing to persist."
           fi

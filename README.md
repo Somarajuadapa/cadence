@@ -110,9 +110,17 @@ credit card, nothing to keep running.
    - `GROQ_API_KEY`
    - `RESEND_API_KEY`
    - `RECIPIENT_EMAIL` — where briefs go (kept private; `briefs.yaml` references it as `env:RECIPIENT_EMAIL`)
-2. Edit `briefs.yaml` with what you want and when, then commit & push.
-3. **Actions** tab → enable workflows → open **Send Cadence briefs** →
-   **Run workflow** to test immediately.
+2. **Actions** tab → **Send Cadence briefs** → **Run workflow**. A form asks:
+   - **What information do you need?**
+   - **Deliver to which email?** (blank = your `RECIPIENT_EMAIL` secret)
+   - **How often?** (daily / every 2 days / every 3 days / weekly)
+   - **Time of day** + **timezone** (and day-of-week if weekly)
+
+   Submitting saves it to `briefs.yaml` **and emails you a copy right away**. From
+   then on the cron delivers it automatically on your schedule.
+
+You can also edit `briefs.yaml` by hand for multiple briefs — the form manages a
+single brief; hand-editing lets you list several.
 
 > Keeping your address in a secret (not in `briefs.yaml`) means the file is safe
 > to commit even in a public repo. To email recipients other than your own
