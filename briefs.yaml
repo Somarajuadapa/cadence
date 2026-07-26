@@ -23,5 +23,5 @@ briefs:
       Then a short note on what to watch at today's open. Keep it skimmable.
     email: "env:RECIPIENT_EMAIL"
     frequency: daily
-    time_of_day: "08:00"
+    time_of_day: "07:49"
     timezone: Asia/Kolkata
