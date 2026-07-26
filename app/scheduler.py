@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from . import agent
@@ -81,6 +82,17 @@ def register_brief(brief: Brief) -> None:
     )
     log.info("Scheduled %s (%s at %s %s)", job_id, brief.frequency,
              brief.time_of_day, brief.timezone)
+
+
+def run_now(brief_id: int) -> None:
+    """Fire a brief immediately (used by the 'Send now' button), off the request thread."""
+    scheduler.add_job(
+        run_brief,
+        trigger=DateTrigger(run_date=datetime.now()),
+        args=[brief_id],
+        id=f"run-now-{brief_id}-{datetime.now().timestamp()}",
+        misfire_grace_time=120,
+    )
 
 
 def unregister_brief(brief_id: int) -> None:

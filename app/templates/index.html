@@ -132,6 +132,11 @@
             </p>
           </div>
           <div class="flex items-center gap-1 shrink-0">
+            <form method="post" action="/briefs/{{ b.id }}/run">
+              <button class="text-xs px-2 py-1 rounded-lg border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                Send now
+              </button>
+            </form>
             <form method="post" action="/briefs/{{ b.id }}/toggle">
               <button class="text-xs px-2 py-1 rounded-lg border border-[#2a2f3d] text-slate-400 hover:text-white">
                 {{ 'Pause' if b.active else 'Resume' }}

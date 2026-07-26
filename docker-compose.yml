@@ -1,0 +1,18 @@
+# Local always-on run:  docker compose up -d
+# Reads your keys from the local .env file.
+services:
+  cadence:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Persist the SQLite DB on the named volume below.
+      DATABASE_URL: sqlite:////data/cadence.db
+    volumes:
+      - cadence-data:/data
+    restart: unless-stopped
+
+volumes:
+  cadence-data:

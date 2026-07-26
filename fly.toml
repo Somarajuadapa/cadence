@@ -1,0 +1,27 @@
+# Fly.io config. Deploy with:  fly launch --copy-config --now   (or `fly deploy`)
+# Set secrets (not committed):  fly secrets set GROQ_API_KEY=... RESEND_API_KEY=...
+app = "cadence"
+primary_region = "bom"  # Mumbai — close to IST users; change as needed.
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8000"
+  DATABASE_URL = "sqlite:////data/cadence.db"
+
+# Persist SQLite across deploys/restarts.
+[mounts]
+  source = "cadence_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false   # keep it running so scheduled briefs always fire
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

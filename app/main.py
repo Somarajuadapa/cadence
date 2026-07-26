@@ -93,6 +93,13 @@ def preview(query: str = Form(...), timezone: str = Form("UTC"), label: str = Fo
     )
 
 
+@app.post("/briefs/{brief_id}/run")
+def run_brief_now(brief_id: int):
+    """Generate and email this brief immediately — a manual test of delivery."""
+    scheduler.run_now(brief_id)
+    return RedirectResponse("/", status_code=303)
+
+
 @app.post("/briefs/{brief_id}/toggle")
 def toggle_brief(brief_id: int):
     session = get_session()

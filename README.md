@@ -88,6 +88,47 @@ Delete**.
 
 ---
 
+## Deploy (always-on)
+
+The scheduler runs **in-process**, so briefs only fire while the app is running.
+For real delivery, run it somewhere always-on. SQLite is kept on a persistent
+volume so your briefs survive restarts and redeploys.
+
+### Docker (any host, or locally)
+
+```bash
+docker compose up -d        # reads keys from your local .env
+# → http://localhost:8000 , restarts automatically, DB persisted in a volume
+```
+
+### Fly.io
+
+```bash
+fly launch --copy-config --now
+fly secrets set GROQ_API_KEY=... RESEND_API_KEY=...   # never commit these
+fly volumes create cadence_data --size 1              # persistent SQLite
+fly deploy
+```
+
+`fly.toml` keeps one machine always running (`min_machines_running = 1`,
+`auto_stop_machines = false`) so scheduled briefs never miss.
+
+### Railway
+
+1. New Project → **Deploy from GitHub repo** (picks up `railway.json` → builds the Dockerfile).
+2. **Variables**: add `GROQ_API_KEY` and `RESEND_API_KEY`.
+3. **Add a Volume** mounted at `/data` (matches `DATABASE_URL=sqlite:////data/cadence.db`).
+4. Deploy — Railway injects `$PORT` automatically.
+
+> Keys are always set as host **secrets/variables**, never committed. `.env` is
+> gitignored and only used for local runs.
+
+## Testing delivery
+
+Each scheduled brief has a **Send now** button — it generates and emails that
+brief immediately, then shows the result (`Sent`, or why it was skipped). Use it
+to confirm your Resend key works without waiting for the schedule.
+
 ## Project layout
 
 ```
