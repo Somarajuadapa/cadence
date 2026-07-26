@@ -1,0 +1,27 @@
+# ── Cadence briefs delivered by the free GitHub Actions cron ──────────────
+# Edit this file to add / change / remove briefs, then commit & push.
+# The workflow (.github/workflows/briefs.yml) reads it on a schedule.
+#
+# Fields:
+#   id           unique key (used to track "last sent"); keep it stable
+#   label        short name shown in the email subject
+#   query        what you want to know (free text)
+#   email        recipient. Use "env:NAME" to read from a GitHub secret and
+#                keep your address out of a public repo (recommended).
+#   frequency    daily | every_2_days | every_3_days | weekly
+#   time_of_day  "HH:MM" (24h), in the timezone below
+#   timezone     IANA name, e.g. Asia/Kolkata, America/New_York
+#   day_of_week  0=Mon .. 6=Sun  (only used when frequency is weekly)
+
+briefs:
+  - id: nifty-premarket
+    label: Nifty pre-market
+    query: >-
+      A summary of how the Nifty 50 performed in the latest trading session:
+      where it opened, where it closed, the day's high/low and percentage change,
+      the key stocks and sectors that drove the move, and the main market news.
+      Then a short note on what to watch at today's open. Keep it skimmable.
+    email: "env:RECIPIENT_EMAIL"
+    frequency: daily
+    time_of_day: "08:00"
+    timezone: Asia/Kolkata

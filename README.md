@@ -88,11 +88,40 @@ Delete**.
 
 ---
 
-## Deploy (always-on)
+## Deploy for free (GitHub Actions — recommended)
 
-The scheduler runs **in-process**, so briefs only fire while the app is running.
-For real delivery, run it somewhere always-on. SQLite is kept on a persistent
-volume so your briefs survive restarts and redeploys.
+You don't need an always-on server. A free **GitHub Actions cron** wakes up on a
+schedule, sends any briefs that are due, and goes back to sleep — no cost, no
+credit card, nothing to keep running.
+
+**How it works**
+
+- Your briefs live in [`briefs.yaml`](briefs.yaml).
+- [`send_due_briefs.py`](send_due_briefs.py) checks each brief's timezone +
+  scheduled time, sends the ones due, and records the date in
+  `.cadence_state.json` so nothing is sent twice.
+- [`.github/workflows/briefs.yml`](.github/workflows/briefs.yml) runs it on a
+  cron using your keys from **encrypted GitHub secrets**.
+
+**Setup (one time)**
+
+1. In your repo: **Settings → Secrets and variables → Actions → New repository secret.**
+   Add:
+   - `GROQ_API_KEY`
+   - `RESEND_API_KEY`
+   - `RECIPIENT_EMAIL` — where briefs go (kept private; `briefs.yaml` references it as `env:RECIPIENT_EMAIL`)
+2. Edit `briefs.yaml` with what you want and when, then commit & push.
+3. **Actions** tab → enable workflows → open **Send Cadence briefs** →
+   **Run workflow** to test immediately.
+
+> Keeping your address in a secret (not in `briefs.yaml`) means the file is safe
+> to commit even in a public repo. To email recipients other than your own
+> address, verify a domain in Resend and set the `EMAIL_FROM` secret.
+
+## Deploy as an always-on service (optional)
+
+If you'd rather host the live web UI 24/7, the scheduler also runs **in-process**.
+SQLite is kept on a persistent volume so briefs survive restarts and redeploys.
 
 ### Docker (any host, or locally)
 

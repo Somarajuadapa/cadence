@@ -1,0 +1,53 @@
+name: Send Cadence briefs
+
+# Runs every 30 minutes (times are UTC). The script checks each brief's own
+# timezone + scheduled time, so a brief set for 08:00 Asia/Kolkata goes out on
+# the first run at/after 08:00 IST and is not repeated that day.
+#
+# To save runs you can narrow this to your delivery window, e.g. for 08:00 IST
+# (= 02:30 UTC) use:  cron: "0,30 2-3 * * *"
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}   # lets you click "Run workflow" to test on demand
+
+permissions:
+  contents: write         # to commit the last-sent state file
+
+concurrency:
+  group: cadence-briefs
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send due briefs
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM || 'Cadence <onboarding@resend.dev>' }}
+        run: python send_due_briefs.py
+
+      - name: Persist last-sent state
+        run: |
+          if [[ -n "$(git status --porcelain .cadence_state.json)" ]]; then
+            git config user.name "cadence-bot"
+            git config user.email "actions@github.com"
+            git add .cadence_state.json
+            git commit -m "chore: update brief send state [skip ci]"
+            git push
+          else
+            echo "No state change."
+          fi
