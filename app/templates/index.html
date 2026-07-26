@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cadence — information on a schedule</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0b0c10; }
+    .card { background: #14161d; border: 1px solid #232733; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200">
+  <div class="max-w-2xl mx-auto px-5 py-12">
+
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🗓️</span>
+        <h1 class="text-2xl font-semibold text-white">Cadence</h1>
+      </div>
+      <p class="text-slate-400 mt-2">
+        Ask for any information, once. Get it researched and emailed to you on a schedule.
+      </p>
+      {% if not llm_enabled or not email_enabled %}
+      <div class="mt-3 text-xs rounded-lg px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-300">
+        {% if not llm_enabled %}⚠ No <code>GROQ_API_KEY</code> — running in preview mode.{% endif %}
+        {% if not email_enabled %} No <code>RESEND_API_KEY</code> — emails are logged, not sent.{% endif %}
+      </div>
+      {% endif %}
+    </header>
+
+    <!-- The one form -->
+    <form method="post" action="/briefs" class="card rounded-2xl p-5 space-y-4">
+      <div>
+        <label class="flex items-center gap-1.5 text-sm font-medium text-slate-300 mb-1.5">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs">?</span>
+          What information do you need?
+        </label>
+        <textarea name="query" id="query" rows="3" required
+          class="w-full rounded-xl bg-[#0e1016] border border-[#2a2f3d] px-3 py-2.5 text-sm
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-500"
+          placeholder="A summary of how the Nifty 50 performed yesterday — where it opened, closed, key moves, and the market news driving it."></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="block text-sm text-slate-400 mb-1">Deliver to (email)</label>
+          <input type="email" name="email" required placeholder="you@example.com"
+            class="w-full rounded-xl bg-[#0e1016] border border-[#2a2f3d] px-3 py-2 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-500" />
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-400 mb-1">How often</label>
+          <select name="frequency" id="frequency"
+            class="w-full rounded-xl bg-[#0e1016] border border-[#2a2f3d] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+            {% for key, label in frequencies.items() %}
+            <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-400 mb-1">At what time</label>
+          <input type="time" name="time_of_day" value="08:00"
+            class="w-full rounded-xl bg-[#0e1016] border border-[#2a2f3d] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
+        </div>
+
+        <div id="dow-wrap" class="hidden col-span-2">
+          <label class="block text-sm text-slate-400 mb-1">Day of week</label>
+          <select name="day_of_week"
+            class="w-full rounded-xl bg-[#0e1016] border border-[#2a2f3d] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+            <option value="0">Monday</option><option value="1">Tuesday</option>
+            <option value="2">Wednesday</option><option value="3">Thursday</option>
+            <option value="4">Friday</option><option value="5">Saturday</option>
+            <option value="6">Sunday</option>
+          </select>
+        </div>
+
+        <div class="col-span-2">
+          <label class="block text-sm text-slate-400 mb-1">Timezone</label>
+          <input type="text" name="timezone" id="timezone" value="{{ default_tz }}"
+            class="w-full rounded-xl bg-[#0e1016] border border-[#2a2f3d] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
+          <p class="text-[11px] text-slate-500 mt-1">IANA name, e.g. Asia/Kolkata, America/New_York, Europe/London.</p>
+        </div>
+
+        <div class="col-span-2">
+          <label class="block text-sm text-slate-400 mb-1">Label (optional)</label>
+          <input type="text" name="label" placeholder="Nifty pre-market"
+            class="w-full rounded-xl bg-[#0e1016] border border-[#2a2f3d] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-500" />
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-1">
+        <button type="button" id="previewBtn"
+          class="flex-1 rounded-xl border border-indigo-500/40 text-indigo-300 px-4 py-2.5 text-sm font-medium hover:bg-indigo-500/10 transition">
+          Preview now
+        </button>
+        <button type="submit"
+          class="flex-1 rounded-xl bg-indigo-500 text-white px-4 py-2.5 text-sm font-medium hover:bg-indigo-400 transition">
+          Schedule this brief
+        </button>
+      </div>
+    </form>
+
+    <!-- Preview output -->
+    <div id="previewArea" class="hidden mt-5 card rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-slate-300">Preview</h2>
+        <span id="previewMeta" class="text-[11px] text-slate-500"></span>
+      </div>
+      <div id="previewBody" class="bg-white text-slate-900 rounded-xl p-4 text-sm"></div>
+    </div>
+
+    <!-- Scheduled briefs -->
+    {% if briefs %}
+    <section class="mt-10">
+      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">Your briefs</h2>
+      <div class="space-y-3">
+        {% for b in briefs %}
+        <div class="card rounded-xl p-4 flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full {{ 'bg-emerald-400' if b.active else 'bg-slate-600' }}"></span>
+              <span class="font-medium text-white truncate">{{ b.label or b.query[:48] }}</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 truncate">{{ b.query }}</p>
+            <p class="text-[11px] text-slate-500 mt-1">
+              → {{ b.email }} · {{ frequencies[b.frequency] }} at {{ b.time_of_day }} {{ b.timezone }}
+              {% if b.last_status %} · last: {{ b.last_status }}{% endif %}
+            </p>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <form method="post" action="/briefs/{{ b.id }}/toggle">
+              <button class="text-xs px-2 py-1 rounded-lg border border-[#2a2f3d] text-slate-400 hover:text-white">
+                {{ 'Pause' if b.active else 'Resume' }}
+              </button>
+            </form>
+            <form method="post" action="/briefs/{{ b.id }}/delete"
+              onsubmit="return confirm('Delete this brief?');">
+              <button class="text-xs px-2 py-1 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">
+                Delete
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <footer class="mt-12 text-center text-[11px] text-slate-600">
+      Cadence · open-weight LLM (Llama 3.3 via Groq) · DuckDuckGo search · Resend email
+    </footer>
+  </div>
+
+  <script>
+    // Show the day-of-week picker only for weekly.
+    const freq = document.getElementById('frequency');
+    const dow = document.getElementById('dow-wrap');
+    freq.addEventListener('change', () => {
+      dow.classList.toggle('hidden', freq.value !== 'weekly');
+    });
+
+    // Preview now.
+    document.getElementById('previewBtn').addEventListener('click', async () => {
+      const query = document.getElementById('query').value.trim();
+      if (!query) { document.getElementById('query').focus(); return; }
+      const btn = document.getElementById('previewBtn');
+      const area = document.getElementById('previewArea');
+      const body = document.getElementById('previewBody');
+      const meta = document.getElementById('previewMeta');
+      btn.textContent = 'Researching…'; btn.disabled = true;
+      area.classList.remove('hidden');
+      body.innerHTML = '<p class="text-slate-500">Searching the web and writing your brief…</p>';
+      try {
+        const fd = new FormData();
+        fd.append('query', query);
+        fd.append('timezone', document.getElementById('timezone').value || 'UTC');
+        const res = await fetch('/api/preview', { method: 'POST', body: fd });
+        const data = await res.json();
+        body.innerHTML = data.html;
+        meta.textContent = (data.used_llm ? 'LLM ✓' : 'preview mode') +
+                           (data.used_search ? ' · web ✓' : ' · no web results') +
+                           (data.note ? ' · ' + data.note : '');
+      } catch (e) {
+        body.innerHTML = '<p class="text-red-600">Preview failed: ' + e + '</p>';
+      } finally {
+        btn.textContent = 'Preview now'; btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
